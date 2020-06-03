@@ -3,6 +3,13 @@ name = "pgdatetime"
 version = "0.1.0"
 authors = ["Ivor Huang <ivorhuang_hjd@163.com>", "David Li <davidli2010@foxmail.com>"]
 edition = "2018"
+readme = "README.md"
+license = "Apache-2.0"
+description = "SQL date/time types written in Rust, compatible with PostgreSQL's date/time types."
+keywords = ["date", "timestamp", "time", "interval", "postgres"]
+repository = "https://github.com/cod-technologies/pgdatetime.git"
+homepage = "https://github.com/cod-technologies/pgdatetime"
+documentation = "https://docs.rs/pgdatetime/"
 
 [[bench]]
 name = "benchmark"
