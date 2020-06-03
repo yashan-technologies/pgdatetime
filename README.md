@@ -1,6 +1,8 @@
 # pgdatetime
 
 [![Apache-2.0 licensed](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Crate](https://img.shields.io/crates/v/pgdatetime.svg)](https://crates.io/crates/pgdatetime)
+[![API](https://docs.rs/pgdatetime/badge.svg)](https://docs.rs/pgdatetime)
 
 SQL date/time types written in Rust, compatible with PostgreSQL's date/time types.
 
