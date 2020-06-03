@@ -450,7 +450,7 @@ fn str2d(s: &[u8]) -> Result<(f64, &[u8]), DateTimeError> {
     let int = integral
         .iter()
         .fold(0, |val, &i| val * 10 + (i - b'0') as i64);
-    let val = if fractional.len() > 0 {
+    let val = if !fractional.is_empty() {
         let float = fractional
             .iter()
             .fold(int, |val, &i| val * 10 + (i - b'0') as i64);
