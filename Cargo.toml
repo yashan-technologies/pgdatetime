@@ -1,7 +1,12 @@
 [package]
 name = "pgdatetime"
 version = "0.1.0"
-authors = ["David Li <davidli2010@foxmail.com>"]
+authors = ["Ivor Huang <ivorhuang_hjd@163.com>", "David Li <davidli2010@foxmail.com>"]
 edition = "2018"
 
-[dependencies]
+[[bench]]
+name = "benchmark"
+harness = false
+
+[dev-dependencies]
+criterion = "^0.3"
