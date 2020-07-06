@@ -1,6 +1,6 @@
 [package]
 name = "pgdatetime"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Ivor Huang <ivorhuang_hjd@163.com>", "David Li <davidli2010@foxmail.com>"]
 edition = "2018"
 readme = "README.md"
