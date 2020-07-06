@@ -13,6 +13,13 @@
 // limitations under the License.
 
 //! SQL date/time types written in Rust, compatible with PostgreSQL's date/time types.
+//!
+//! ## Optional features
+//!
+//! ### `serde`
+//!
+//! When this optional dependency is enabled, `Date`, `Time`, `Timestamp` and `Interval` implement the `serde::Serialize` and
+//! `serde::Deserialize` traits.
 
 mod common;
 mod date;
@@ -23,6 +30,9 @@ mod time;
 mod timestamp;
 mod timezone;
 mod token;
+
+#[cfg(feature = "serde")]
+mod serde;
 
 pub use crate::date::Date;
 pub use crate::error::DateTimeError;

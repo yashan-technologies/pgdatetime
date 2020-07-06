@@ -8,6 +8,12 @@ SQL date/time types written in Rust, compatible with PostgreSQL's date/time type
 
 See also: [Date/Time Types](https://www.postgresql.org/docs/current/datatype-datetime.html)
 
+## Optional features
+
+### `serde`
+
+When this optional dependency is enabled, `Date`, `Time`, `Timestamp` and `Interval` implement the `serde::Serialize` and `serde::Deserialize` traits.
+
 ## License
 
 This project is licensed under the Apache-2.0 license ([LICENSE](LICENSE) or <http://www.apache.org/licenses/LICENSE-2.0>).
