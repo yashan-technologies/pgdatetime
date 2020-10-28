@@ -32,7 +32,7 @@ mod timezone;
 mod token;
 
 #[cfg(feature = "serde")]
-mod serde;
+mod serialize;
 
 pub use crate::date::Date;
 pub use crate::error::DateTimeError;
@@ -41,6 +41,7 @@ pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
 
 /// Date unit.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DateUnit {
     Delta,
