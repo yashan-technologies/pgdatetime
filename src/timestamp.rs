@@ -482,7 +482,7 @@ impl Timestamp {
         unit: DateUnit,
         is_negative: bool,
         _is_tz: bool,
-    ) -> Result<f64, DateTimeError> {
+    ) -> Result<Option<f64>, DateTimeError> {
         match unit {
             // Oscillating units
             DateUnit::MicroSec
@@ -499,7 +499,7 @@ impl Timestamp {
             | DateUnit::Doy
             | DateUnit::Tz
             | DateUnit::TzMinute
-            | DateUnit::TzHour => Ok(0.0),
+            | DateUnit::TzHour => Ok(None),
 
             // Monotonically-increasing unit
             DateUnit::Year
@@ -510,9 +510,9 @@ impl Timestamp {
             | DateUnit::IsoYear
             | DateUnit::Epoch => {
                 if is_negative {
-                    Ok(-std::f64::INFINITY)
+                    Ok(Some(-std::f64::INFINITY))
                 } else {
-                    Ok(std::f64::INFINITY)
+                    Ok(Some(std::f64::INFINITY))
                 }
             }
 
@@ -750,7 +750,7 @@ pub(crate) const DATE_TIME_END_VAL: Timestamp = Timestamp::new(std::i64::MAX);
 impl DateTime for Timestamp {
     /// Extracts specified field from `Timestamp`.
     #[inline]
-    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<f64, DateTimeError> {
+    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<Option<f64>, DateTimeError> {
         if self.is_infinite() {
             return Self::infinite_part(ty, unit, self.is_begin(), false);
         }
@@ -760,21 +760,21 @@ impl DateTime for Timestamp {
                 let mut fsec = 0;
                 timestamp2time(self.value(), &None, &mut tm, &mut fsec, &mut None, &None)?;
                 match unit {
-                    DateUnit::MicroSec => Ok(tm.sec as f64 * 1_000_000.0 + fsec as f64),
-                    DateUnit::MilliSec => Ok(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0),
-                    DateUnit::Second => Ok(tm.sec as f64 + fsec as f64 / 1_000_000.0),
-                    DateUnit::Minute => Ok(tm.min as f64),
-                    DateUnit::Hour => Ok(tm.hour as f64),
-                    DateUnit::Day => Ok(tm.mday as f64),
-                    DateUnit::Month => Ok(tm.mon as f64),
-                    DateUnit::Quarter => Ok(((tm.mon - 1) / 3 + 1) as f64),
-                    DateUnit::Week => Ok(date_to_iso_week(tm.year, tm.mon, tm.mday) as f64),
+                    DateUnit::MicroSec => Ok(Some(tm.sec as f64 * 1_000_000.0 + fsec as f64)),
+                    DateUnit::MilliSec => Ok(Some(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0)),
+                    DateUnit::Second => Ok(Some(tm.sec as f64 + fsec as f64 / 1_000_000.0)),
+                    DateUnit::Minute => Ok(Some(tm.min as f64)),
+                    DateUnit::Hour => Ok(Some(tm.hour as f64)),
+                    DateUnit::Day => Ok(Some(tm.mday as f64)),
+                    DateUnit::Month => Ok(Some(tm.mon as f64)),
+                    DateUnit::Quarter => Ok(Some(((tm.mon - 1) / 3 + 1) as f64)),
+                    DateUnit::Week => Ok(Some(date_to_iso_week(tm.year, tm.mon, tm.mday) as f64)),
                     DateUnit::Year => {
                         if tm.year > 0 {
-                            Ok(tm.year as f64)
+                            Ok(Some(tm.year as f64))
                         } else {
                             // there is no year 0, just 1 BC and 1 AD.
-                            Ok((tm.year - 1) as f64)
+                            Ok(Some((tm.year - 1) as f64))
                         }
                     }
 
@@ -783,9 +783,9 @@ impl DateTime for Timestamp {
                         // is 1990 thru 1999... decade 0 starts on year 1 BC, and -1
                         // is 11 BC thru 2 BC.
                         if tm.year >= 0 {
-                            Ok((tm.year / 10) as f64)
+                            Ok(Some((tm.year / 10) as f64))
                         } else {
-                            Ok((-((8 - (tm.year - 1)) / 10)) as f64)
+                            Ok(Some((-((8 - (tm.year - 1)) / 10)) as f64))
                         }
                     }
                     DateUnit::Century => {
@@ -793,18 +793,18 @@ impl DateTime for Timestamp {
                         // centuries BC, c<0: year in [ c*100 : (c+1) * 100 - 1]
                         // there is no number 0 century.
                         if tm.year > 0 {
-                            Ok(((tm.year + 99) / 100) as f64)
+                            Ok(Some(((tm.year + 99) / 100) as f64))
                         } else {
                             // caution: C division may have negative remainder.
-                            Ok((-((99 - (tm.year - 1)) / 100)) as f64)
+                            Ok(Some((-((99 - (tm.year - 1)) / 100)) as f64))
                         }
                     }
                     DateUnit::Millennium => {
                         // see comments above.
                         if tm.year > 0 {
-                            Ok(((tm.year + 999) / 1000) as f64)
+                            Ok(Some(((tm.year + 999) / 1000) as f64))
                         } else {
-                            Ok((-((999 - (tm.year - 1)) / 1000)) as f64)
+                            Ok(Some((-((999 - (tm.year - 1)) / 1000)) as f64))
                         }
                     }
 
@@ -816,10 +816,17 @@ impl DateTime for Timestamp {
                                 + tm.sec as f64
                                 + (fsec as f64 / 1_000_000.0))
                                 / SECS_PER_DAY as f64;
-                        Ok(result)
+                        Ok(Some(result))
                     }
 
-                    DateUnit::IsoYear => Ok(date_to_iso_year(tm.year, tm.mon, tm.mday) as f64),
+                    DateUnit::IsoYear => {
+                        let mut result = date_to_iso_year(tm.year, tm.mon, tm.mday);
+                        // Adjust BC years
+                        if result <= 0 {
+                            result -= 1;
+                        }
+                        Ok(Some(result as f64))
+                    }
                     DateUnit::Dow | DateUnit::IsoDow => {
                         let mut tm = PgTime::new();
                         let mut fsec = 0;
@@ -827,19 +834,19 @@ impl DateTime for Timestamp {
                         let date = date2julian(tm.year, tm.mon, tm.mday);
                         let day = julian_to_week_day(date);
                         if unit == DateUnit::IsoDow && day == 0 {
-                            Ok(7_f64)
+                            Ok(Some(7_f64))
                         } else {
-                            Ok(day as f64)
+                            Ok(Some(day as f64))
                         }
                     }
                     DateUnit::Doy => {
                         let mut tm = PgTime::new();
                         let mut fsec = 0;
                         timestamp2time(self.value(), &None, &mut tm, &mut fsec, &mut None, &None)?;
-                        Ok(
+                        Ok(Some(
                             (date2julian(tm.year, tm.mon, tm.mday) - date2julian(tm.year, 1, 1) + 1)
                                 as f64,
-                        )
+                        ))
                     }
                     _ => Err(DateTimeError::invalid(format!(
                         "unit: {:?} is invalid",
@@ -1170,61 +1177,61 @@ mod tests {
     fn test_timestamp_date_part() -> Result<(), DateTimeError> {
         let timestamp = Timestamp::try_from_str("2001-02-16 20:38:40.4567890", 6, DateOrder::YMD)?;
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, 21.0);
+        assert_eq!(ret, Some(21.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::JULIAN)?;
-        assert_eq!(ret, 2451957.860190472);
+        assert_eq!(ret, Some(2451957.860190472));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Millennium)?;
-        assert_eq!(ret, 3.0);
+        assert_eq!(ret, Some(3.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Decade)?;
-        assert_eq!(ret, 200.0);
+        assert_eq!(ret, Some(200.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Day)?;
-        assert_eq!(ret, 16.0);
+        assert_eq!(ret, Some(16.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Dow)?;
-        assert_eq!(ret, 5.0);
+        assert_eq!(ret, Some(5.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Doy)?;
-        assert_eq!(ret, 47.0);
+        assert_eq!(ret, Some(47.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::IsoDow)?;
-        assert_eq!(ret, 5.0);
+        assert_eq!(ret, Some(5.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::IsoYear)?;
-        assert_eq!(ret, 2001.0);
+        assert_eq!(ret, Some(2001.0));
 
         let ret = timestamp.date_part(FieldType::Epoch, DateUnit::Epoch);
         assert!(ret.is_err());
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Hour)?;
-        assert_eq!(ret, 20.0);
+        assert_eq!(ret, Some(20.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Minute)?;
-        assert_eq!(ret, 38.0);
+        assert_eq!(ret, Some(38.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Second)?;
-        assert_eq!(ret, 40.456789);
+        assert_eq!(ret, Some(40.456789));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::MilliSec)?;
-        assert_eq!(ret, 40456.789);
+        assert_eq!(ret, Some(40456.789));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::MicroSec)?;
-        assert_eq!(ret, 40456789.0);
+        assert_eq!(ret, Some(40456789.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Month)?;
-        assert_eq!(ret, 2.0);
+        assert_eq!(ret, Some(2.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Quarter)?;
-        assert_eq!(ret, 1.0);
+        assert_eq!(ret, Some(1.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Week)?;
-        assert_eq!(ret, 7.0);
+        assert_eq!(ret, Some(7.0));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Year)?;
-        assert_eq!(ret, 2001.0);
+        assert_eq!(ret, Some(2001.0));
 
         let ret = timestamp.date_part(FieldType::Epoch, DateUnit::Epoch);
         assert!(ret.is_err());
@@ -1233,69 +1240,69 @@ mod tests {
 
         let timestamp = Timestamp::try_from_str("infinity", 6, DateOrder::YMD)?;
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Millennium)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Decade)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Day)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Dow)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Doy)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::IsoDow)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::IsoYear)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Epoch, DateUnit::Epoch)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Hour)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Minute)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Second)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::MilliSec)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::MicroSec)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Month)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Quarter)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Week)?;
-        assert_eq!(ret, 0.0);
+        assert_eq!(ret, None);
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Year)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::JULIAN)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         let timestamp = Timestamp::try_from_str("-infinity", 6, DateOrder::YMD)?;
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, -std::f64::INFINITY);
+        assert_eq!(ret, Some(-std::f64::INFINITY));
 
         let timestamp = Timestamp::try_from_str("infinity", 6, DateOrder::YMD)?;
         let ret = timestamp.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, std::f64::INFINITY);
+        assert_eq!(ret, Some(std::f64::INFINITY));
 
         Ok(())
     }

@@ -1012,25 +1012,25 @@ impl Ord for Interval {
 impl DateTime for Interval {
     /// Extracts specified field from `Interval`.
     #[inline]
-    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<f64, DateTimeError> {
+    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<Option<f64>, DateTimeError> {
         match ty {
             FieldType::Unit => {
                 let mut tm: PgTime = PgTime::new();
                 let mut fsec = 0;
                 self.to_pgtime(&mut tm, &mut fsec)?;
                 match unit {
-                    DateUnit::MicroSec => Ok(tm.sec as f64 * 1_000_000.0 + fsec as f64),
-                    DateUnit::MilliSec => Ok(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0),
-                    DateUnit::Second => Ok(tm.sec as f64 + fsec as f64 / 1_000_000.0),
-                    DateUnit::Minute => Ok(tm.min as f64),
-                    DateUnit::Hour => Ok(tm.hour as f64),
-                    DateUnit::Day => Ok(tm.mday as f64),
-                    DateUnit::Month => Ok(tm.mon as f64),
-                    DateUnit::Quarter => Ok(((tm.mon / 3) + 1) as f64),
-                    DateUnit::Year => Ok(tm.year as f64),
-                    DateUnit::Decade => Ok((tm.year / 10) as f64),
-                    DateUnit::Century => Ok((tm.year / 100) as f64),
-                    DateUnit::Millennium => Ok((tm.year / 1000) as f64),
+                    DateUnit::MicroSec => Ok(Some(tm.sec as f64 * 1_000_000.0 + fsec as f64)),
+                    DateUnit::MilliSec => Ok(Some(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0)),
+                    DateUnit::Second => Ok(Some(tm.sec as f64 + fsec as f64 / 1_000_000.0)),
+                    DateUnit::Minute => Ok(Some(tm.min as f64)),
+                    DateUnit::Hour => Ok(Some(tm.hour as f64)),
+                    DateUnit::Day => Ok(Some(tm.mday as f64)),
+                    DateUnit::Month => Ok(Some(tm.mon as f64)),
+                    DateUnit::Quarter => Ok(Some(((tm.mon / 3) + 1) as f64)),
+                    DateUnit::Year => Ok(Some(tm.year as f64)),
+                    DateUnit::Decade => Ok(Some((tm.year / 10) as f64)),
+                    DateUnit::Century => Ok(Some((tm.year / 100) as f64)),
+                    DateUnit::Millennium => Ok(Some((tm.year / 1000) as f64)),
                     _ => Err(DateTimeError::invalid(format!(
                         "unit: {:?} is invalid",
                         unit
@@ -1045,7 +1045,7 @@ impl DateTime for Interval {
                     result += (DAYS_PER_MONTH as f64 * SECS_PER_DAY as f64)
                         * (self.month % MONTHS_PER_YEAR) as f64;
                     result += SECS_PER_DAY as f64 * self.day as f64;
-                    Ok(result)
+                    Ok(Some(result))
                 } else {
                     Err(DateTimeError::invalid(format!(
                         "token ty: {:?} is invalid",
@@ -1513,16 +1513,16 @@ mod tests {
 
         let interval = Interval::try_from_ymwd_hms(2001, 2, 0, 16, 20, 38, 40.4567890)?;
         let ret = interval.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, 20.0);
+        assert_eq!(ret, Some(20.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Millennium)?;
-        assert_eq!(ret, 2.0);
+        assert_eq!(ret, Some(2.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Decade)?;
-        assert_eq!(ret, 200.0);
+        assert_eq!(ret, Some(200.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Day)?;
-        assert_eq!(ret, 16.0);
+        assert_eq!(ret, Some(16.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Dow);
         assert!(ret.is_err());
@@ -1537,34 +1537,34 @@ mod tests {
         assert!(ret.is_err());
 
         let ret = interval.date_part(FieldType::Epoch, DateUnit::Epoch)?;
-        assert_eq!(ret, 63153398320.45679);
+        assert_eq!(ret, Some(63153398320.45679));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Hour)?;
-        assert_eq!(ret, 20.0);
+        assert_eq!(ret, Some(20.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Minute)?;
-        assert_eq!(ret, 38.0);
+        assert_eq!(ret, Some(38.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Second)?;
-        assert_eq!(ret, 40.456789);
+        assert_eq!(ret, Some(40.456789));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::MilliSec)?;
-        assert_eq!(ret, 40456.789);
+        assert_eq!(ret, Some(40456.789));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::MicroSec)?;
-        assert_eq!(ret, 40456789.0);
+        assert_eq!(ret, Some(40456789.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Month)?;
-        assert_eq!(ret, 2.0);
+        assert_eq!(ret, Some(2.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Quarter)?;
-        assert_eq!(ret, 1.0);
+        assert_eq!(ret, Some(1.0));
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Week);
         assert!(ret.is_err());
 
         let ret = interval.date_part(FieldType::Unit, DateUnit::Year)?;
-        assert_eq!(ret, 2001.0);
+        assert_eq!(ret, Some(2001.0));
 
         Ok(())
     }
