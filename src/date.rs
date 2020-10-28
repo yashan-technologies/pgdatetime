@@ -407,7 +407,7 @@ pub const DATE_END_VAL: Date = Date::new(std::i32::MAX);
 impl DateTime for Date {
     /// Extracts specified field from `Date`.
     #[inline]
-    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<f64, DateTimeError> {
+    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<Option<f64>, DateTimeError> {
         let timestamp: Timestamp = TryFrom::try_from(*self)?;
         timestamp.date_part(ty, unit)
     }
@@ -669,16 +669,16 @@ mod tests {
     fn test_date_date_part() -> Result<(), DateTimeError> {
         let date = Date::try_from_str("2116-9-10", DateOrder::YMD)?;
         let ret = date.date_part(FieldType::Unit, DateUnit::Millennium)?;
-        assert_eq!(ret, 3.0);
+        assert_eq!(ret, Some(3.0));
 
         let ret = date.date_part(FieldType::Unit, DateUnit::Century)?;
-        assert_eq!(ret, 22.0);
+        assert_eq!(ret, Some(22.0));
 
         let ret = date.date_part(FieldType::Unit, DateUnit::Decade)?;
-        assert_eq!(ret, 211.0);
+        assert_eq!(ret, Some(211.0));
 
         let ret = date.date_part(FieldType::Unit, DateUnit::Year)?;
-        assert_eq!(ret, 2116.0);
+        assert_eq!(ret, Some(2116.0));
         Ok(())
     }
 

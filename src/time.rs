@@ -277,18 +277,18 @@ impl From<Interval> for Time {
 impl DateTime for Time {
     /// Extracts specified field from time type.
     #[inline]
-    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<f64, DateTimeError> {
+    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<Option<f64>, DateTimeError> {
         match ty {
             FieldType::Unit => {
                 let mut tm = PgTime::new();
                 let mut fsec = 0;
                 self.to_pgtime(&mut tm, &mut fsec);
                 match unit {
-                    DateUnit::MicroSec => Ok(tm.sec as f64 * 1_000_000.0 + fsec as f64),
-                    DateUnit::MilliSec => Ok(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0),
-                    DateUnit::Second => Ok(tm.sec as f64 + fsec as f64 / 1_000_000.0),
-                    DateUnit::Minute => Ok(tm.min as f64),
-                    DateUnit::Hour => Ok(tm.hour as f64),
+                    DateUnit::MicroSec => Ok(Some(tm.sec as f64 * 1_000_000.0 + fsec as f64)),
+                    DateUnit::MilliSec => Ok(Some(tm.sec as f64 * 1000.0 + fsec as f64 / 1000.0)),
+                    DateUnit::Second => Ok(Some(tm.sec as f64 + fsec as f64 / 1_000_000.0)),
+                    DateUnit::Minute => Ok(Some(tm.min as f64)),
+                    DateUnit::Hour => Ok(Some(tm.hour as f64)),
                     _ => Err(DateTimeError::invalid(format!(
                         "unit: {:?} is invalid for time",
                         unit
@@ -297,7 +297,7 @@ impl DateTime for Time {
             }
             FieldType::Epoch => {
                 if unit == DateUnit::Epoch {
-                    Ok(self.value() as f64 / 1_000_000.0)
+                    Ok(Some(self.value() as f64 / 1_000_000.0))
                 } else {
                     Err(DateTimeError::invalid(format!("type: {:?} is invalid", ty)))
                 }
@@ -495,22 +495,22 @@ mod tests {
     fn test_time_part() -> Result<(), DateTimeError> {
         let time = Time::try_from_str("20:45:34.673452", -1, DateOrder::YMD)?;
         let ret = time.date_part(FieldType::Unit, DateUnit::Hour)?;
-        assert_eq!(ret, 20.0);
+        assert_eq!(ret, Some(20.0));
 
         let ret = time.date_part(FieldType::Unit, DateUnit::Minute)?;
-        assert_eq!(ret, 45.0);
+        assert_eq!(ret, Some(45.0));
 
         let ret = time.date_part(FieldType::Unit, DateUnit::Second)?;
-        assert_eq!(ret, 34.673452);
+        assert_eq!(ret, Some(34.673452));
 
         let ret = time.date_part(FieldType::Unit, DateUnit::MilliSec)?;
-        assert_eq!(ret, 34673.452);
+        assert_eq!(ret, Some(34673.452));
 
         let ret = time.date_part(FieldType::Unit, DateUnit::MicroSec)?;
-        assert_eq!(ret, 34673452.0);
+        assert_eq!(ret, Some(34673452.0));
 
         let ret = time.date_part(FieldType::Epoch, DateUnit::Epoch)?;
-        assert_eq!(ret, 74734.673452);
+        assert_eq!(ret, Some(74734.673452));
 
         let ret = time.date_part(FieldType::Unit, DateUnit::Year);
         assert!(ret.is_err());

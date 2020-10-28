@@ -59,10 +59,7 @@ impl DateTimeError {
 
     #[inline]
     pub(crate) fn is_invalid(&self) -> bool {
-        match self.kind {
-            DateTimeErrorKind::Invalid(ref _s) => true,
-            _ => false,
-        }
+        matches!(self.kind, DateTimeErrorKind::Invalid(ref _s))
     }
 
     #[inline]

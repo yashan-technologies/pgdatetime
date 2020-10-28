@@ -72,7 +72,7 @@ pub enum DateUnit {
 /// General trait for all date time types.
 pub trait DateTime: Sized {
     /// Extracts specified field from date time.
-    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<f64, DateTimeError>;
+    fn date_part(&self, ty: FieldType, unit: DateUnit) -> Result<Option<f64>, DateTimeError>;
     /// Checks whether date time is finite.
     fn is_finite(&self) -> bool;
     /// Checks whether date time is infinite.
