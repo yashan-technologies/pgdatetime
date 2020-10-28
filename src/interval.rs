@@ -132,7 +132,7 @@ impl Interval {
 
         let months = years.wrapping_mul(MONTHS_PER_YEAR).wrapping_add(months);
         let days = weeks.wrapping_mul(7).wrapping_add(days);
-        let secs = (seconds * USECS_PER_SEC as f64).round() as i64;
+        let secs = unsafe { (seconds * USECS_PER_SEC as f64).to_int_unchecked() };
         let time = (hours as i64)
             .wrapping_mul(SECS_PER_HOUR as i64 * USECS_PER_SEC)
             .wrapping_add((minutes as i64).wrapping_mul(SECS_PER_MINUTE as i64 * USECS_PER_SEC))
